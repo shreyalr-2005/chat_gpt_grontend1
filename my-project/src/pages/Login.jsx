@@ -26,7 +26,8 @@ const Login = () => {
             if (response.ok) {
                 localStorage.setItem('access_token', data.access_token);
                 localStorage.setItem('refresh_token', data.refresh_token);
-                navigate('/dashboard');
+                localStorage.setItem('user_email', email);
+                navigate('/');
             } else if (response.status === 401) {
                 setError('Invalid email or password. Please check your credentials or sign up first.');
             } else {
