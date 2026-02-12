@@ -20,6 +20,7 @@ const Header = () => {
           <Link to="/" style={{ color: 'white', marginRight: '1rem' }}>Home</Link>
           <Link to="/about" style={{ color: 'white', marginRight: '1rem' }}>About</Link>
           <Link to="/contact" style={{ color: 'white', marginRight: '1rem' }}>Contact</Link>
+          <Link to="/dashboard" style={{ color: '#a5b4fc', marginRight: '1rem', fontWeight: '600' }}>Dashboard</Link>
           {!isLoggedIn && (
             <>
               <Link to="/login" style={{ color: 'white', marginRight: '1rem' }}>Login</Link>

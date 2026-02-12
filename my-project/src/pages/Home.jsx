@@ -124,6 +124,10 @@ const Home = () => {
     if (!question && !attachedFile) return;
     if (loading) return;
 
+    // Increment global search counter
+    const currentCount = parseInt(localStorage.getItem("chatgpt_global_search_count") || "0", 10);
+    localStorage.setItem("chatgpt_global_search_count", (currentCount + 1).toString());
+
     // Build the user-visible message
     let userDisplay = question;
     if (attachedFile) {
