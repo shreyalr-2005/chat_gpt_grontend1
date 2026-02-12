@@ -38,8 +38,91 @@ const Home = () => {
   const [activeChatId, setActiveChatId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [attachedFile, setAttachedFile] = useState(null);
+  const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  const recognitionRef = useRef(null);
+
+  // Setup Speech Recognition
+  useEffect(() => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      console.warn("Speech Recognition API not available in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    recognition.onresult = (event) => {
+      let finalTranscript = "";
+      let interimTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const transcript = event.results[i][0].transcript;
+        if (event.results[i].isFinal) {
+          finalTranscript += transcript;
+        } else {
+          interimTranscript += transcript;
+        }
+      }
+      if (finalTranscript) {
+        setInput(finalTranscript);
+        setIsListening(false);
+        // Auto-send after a short delay so the user sees the text
+        setTimeout(() => {
+          document.getElementById("voice-auto-send")?.click();
+        }, 500);
+      } else if (interimTranscript) {
+        setInput(interimTranscript);
+      }
+    };
+
+    recognition.onerror = (event) => {
+      console.error("Speech recognition error:", event.error);
+      setIsListening(false);
+      if (event.error === "not-allowed") {
+        alert("Microphone access denied. Please allow microphone access in your browser settings.");
+      }
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+  }, []);
+
+  const toggleVoice = () => {
+    if (!recognitionRef.current) {
+      alert("Speech recognition is not supported in your browser. Please use Google Chrome.");
+      return;
+    }
+    if (isListening) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+    } else {
+      try {
+        recognitionRef.current.start();
+        setIsListening(true);
+      } catch (err) {
+        console.error("Failed to start speech recognition:", err);
+        setIsListening(false);
+      }
+    }
+  };
+
+  // Text-to-speech for AI responses
+  const speakText = (text) => {
+    if ("speechSynthesis" in window) {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.rate = 1;
+      utterance.pitch = 1;
+      window.speechSynthesis.speak(utterance);
+    }
+  };
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -175,6 +258,8 @@ const Home = () => {
         ...prev,
         { role: "assistant", text: data.response || "No response received." },
       ]);
+      // Read AI response aloud
+      if (data.response) speakText(data.response);
     } catch (error) {
       console.error("Error:", error);
       setMessages((prev) => [
@@ -366,7 +451,25 @@ const Home = () => {
               onKeyDown={handleKeyDown}
               disabled={loading}
             />
+            {/* Voice input button */}
             <button
+              onClick={toggleVoice}
+              className={`p-2 rounded-full transition-all duration-200 ${isListening
+                ? "bg-red-500 text-white animate-pulse shadow-lg shadow-red-300 scale-110"
+                : "bg-indigo-100 text-indigo-600 hover:bg-indigo-200 hover:scale-105"
+                }`}
+              title={isListening ? "Stop listening" : "Click to speak"}
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                <line x1="12" y1="19" x2="12" y2="23"></line>
+                <line x1="8" y1="23" x2="16" y2="23"></line>
+              </svg>
+            </button>
+            {/* Send button */}
+            <button
+              id="voice-auto-send"
               onClick={askQuestion}
               disabled={loading || (!input.trim() && !attachedFile)}
               className="p-2 rounded-full bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
@@ -377,6 +480,14 @@ const Home = () => {
               </svg>
             </button>
           </div>
+
+          {/* Listening indicator */}
+          {isListening && (
+            <div className="flex items-center justify-center gap-2 mt-2 text-red-500 text-sm font-medium animate-pulse">
+              <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+              Listening... Speak now
+            </div>
+          )}
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2 mt-4 justify-center">
