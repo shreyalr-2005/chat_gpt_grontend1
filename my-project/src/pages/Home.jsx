@@ -279,7 +279,7 @@ const Home = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://127.0.0.1:8000/ai/ask", {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/ai/ask`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -301,7 +301,7 @@ const Home = () => {
         ...prev,
         {
           role: "assistant",
-          text: "⚠️ Something went wrong. Make sure the backend server is running at http://127.0.0.1:8000",
+          text: `⚠️ Something went wrong. Make sure the backend server is running at ${import.meta.env.VITE_API_URL}`,
         },
       ]);
     } finally {
@@ -497,9 +497,9 @@ const Home = () => {
           )}
 
           <div className={`flex items-center gap-2 border rounded-2xl px-4 py-3 shadow-sm focus-within:ring-2 ${activeMode === "search" ? "border-indigo-400 focus-within:ring-indigo-300" :
-              activeMode === "study" ? "border-green-400 focus-within:ring-green-300" :
-                activeMode === "create_image" ? "border-purple-400 focus-within:ring-purple-300" :
-                  "border-gray-300 focus-within:ring-gray-300"
+            activeMode === "study" ? "border-green-400 focus-within:ring-green-300" :
+              activeMode === "create_image" ? "border-purple-400 focus-within:ring-purple-300" :
+                "border-gray-300 focus-within:ring-gray-300"
             }`}>
             <input
               type="text"
@@ -532,9 +532,9 @@ const Home = () => {
               onClick={askQuestion}
               disabled={loading || (!input.trim() && !attachedFile)}
               className={`p-2 rounded-full text-white disabled:opacity-40 disabled:cursor-not-allowed transition ${activeMode === "search" ? "bg-indigo-600 hover:bg-indigo-500" :
-                  activeMode === "study" ? "bg-green-600 hover:bg-green-500" :
-                    activeMode === "create_image" ? "bg-purple-600 hover:bg-purple-500" :
-                      "bg-gray-800 hover:bg-gray-700"
+                activeMode === "study" ? "bg-green-600 hover:bg-green-500" :
+                  activeMode === "create_image" ? "bg-purple-600 hover:bg-purple-500" :
+                    "bg-gray-800 hover:bg-gray-700"
                 }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -563,8 +563,8 @@ const Home = () => {
             <button
               onClick={() => toggleMode("search")}
               className={`px-4 py-1.5 text-sm rounded-full transition font-medium ${activeMode === "search"
-                  ? "bg-indigo-600 text-white border border-indigo-600 shadow-md shadow-indigo-200"
-                  : "border border-gray-300 text-gray-700 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700"
+                ? "bg-indigo-600 text-white border border-indigo-600 shadow-md shadow-indigo-200"
+                : "border border-gray-300 text-gray-700 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700"
                 }`}
             >
               🔍 Search
@@ -572,8 +572,8 @@ const Home = () => {
             <button
               onClick={() => toggleMode("study")}
               className={`px-4 py-1.5 text-sm rounded-full transition font-medium ${activeMode === "study"
-                  ? "bg-green-600 text-white border border-green-600 shadow-md shadow-green-200"
-                  : "border border-gray-300 text-gray-700 hover:bg-green-50 hover:border-green-300 hover:text-green-700"
+                ? "bg-green-600 text-white border border-green-600 shadow-md shadow-green-200"
+                : "border border-gray-300 text-gray-700 hover:bg-green-50 hover:border-green-300 hover:text-green-700"
                 }`}
             >
               📚 Study
@@ -581,8 +581,8 @@ const Home = () => {
             <button
               onClick={() => toggleMode("create_image")}
               className={`px-4 py-1.5 text-sm rounded-full transition font-medium ${activeMode === "create_image"
-                  ? "bg-purple-600 text-white border border-purple-600 shadow-md shadow-purple-200"
-                  : "border border-gray-300 text-gray-700 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
+                ? "bg-purple-600 text-white border border-purple-600 shadow-md shadow-purple-200"
+                : "border border-gray-300 text-gray-700 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
                 }`}
             >
               🎨 Create Image
