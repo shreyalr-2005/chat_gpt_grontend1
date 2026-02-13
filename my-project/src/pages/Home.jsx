@@ -38,6 +38,7 @@ const Home = () => {
   const [activeChatId, setActiveChatId] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [attachedFile, setAttachedFile] = useState(null);
+  const [activeMode, setActiveMode] = useState(null); // null | "search" | "study" | "create_image"
   const [isListening, setIsListening] = useState(false);
   const messagesEndRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -202,6 +203,30 @@ const Home = () => {
     setAttachedFile(null);
   };
 
+  // System prompts for each mode
+  const SYSTEM_PROMPTS = {
+    search: "You are a web search assistant. Provide concise, factual, and well-organized answers as if you are a search engine. Include key facts, dates, and numbers. Format your response with bullet points or numbered lists when appropriate. Always cite relevant context. Start your response with a brief summary sentence.",
+    study: "You are an expert tutor and study companion. Explain topics step-by-step in a clear, educational manner. Use examples, analogies, and bullet points to aid understanding. After explaining, suggest 2-3 follow-up questions the student might want to explore. Use emojis sparingly to make learning engaging.",
+    create_image: "You are a creative AI image description generator. When the user describes an image they want, provide an extremely detailed, vivid, and artistic description of that image as if painting it with words. Describe the composition, colors, lighting, mood, style, and every visual detail. Format it as: first a brief title for the image, then the full detailed description. Make it feel like a professional art prompt.",
+  };
+
+  // Mode display config
+  const MODE_CONFIG = {
+    search: { icon: "🔍", label: "Search", placeholder: "Search the web..." },
+    study: { icon: "📚", label: "Study", placeholder: "What do you want to study?" },
+    create_image: { icon: "🎨", label: "Create Image", placeholder: "Describe the image you want..." },
+  };
+
+  const toggleMode = (mode) => {
+    setActiveMode((prev) => (prev === mode ? null : mode));
+  };
+
+  const getPlaceholder = () => {
+    if (attachedFile) return "Ask about this file...";
+    if (activeMode && MODE_CONFIG[activeMode]) return MODE_CONFIG[activeMode].placeholder;
+    return "Ask anything";
+  };
+
   const askQuestion = async () => {
     const question = input.trim();
     if (!question && !attachedFile) return;
@@ -211,12 +236,15 @@ const Home = () => {
     const currentCount = parseInt(localStorage.getItem("chatgpt_global_search_count") || "0", 10);
     localStorage.setItem("chatgpt_global_search_count", (currentCount + 1).toString());
 
-    // Build the user-visible message
+    // Build the user-visible message with mode icon
+    const modeIcon = activeMode && MODE_CONFIG[activeMode] ? MODE_CONFIG[activeMode].icon + " " : "";
     let userDisplay = question;
     if (attachedFile) {
       userDisplay = question
         ? `📎 ${attachedFile.name}\n\n${question}`
         : `📎 ${attachedFile.name}`;
+    } else if (activeMode) {
+      userDisplay = `${modeIcon}${question}`;
     }
 
     // Build the message to send to the AI
@@ -232,12 +260,18 @@ const Home = () => {
         : `[User attached an image: ${attachedFile.name}] Please describe or analyze this image.`;
     }
 
+    // Determine system prompt based on active mode
+    const systemPrompt = activeMode && SYSTEM_PROMPTS[activeMode]
+      ? SYSTEM_PROMPTS[activeMode]
+      : "You are a helpful assistant.";
+
     setMessages((prev) => [
       ...prev,
       {
         role: "user",
         text: userDisplay,
         attachment: attachedFile,
+        mode: activeMode,
       },
     ]);
     setInput("");
@@ -250,13 +284,14 @@ const Home = () => {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ message: aiMessage }),
+        body: JSON.stringify({ message: aiMessage, system_prompt: systemPrompt }),
       });
 
       const data = await response.json();
+      const modePrefix = activeMode && MODE_CONFIG[activeMode] ? MODE_CONFIG[activeMode].icon + " " : "";
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", text: data.response || "No response received." },
+        { role: "assistant", text: modePrefix + (data.response || "No response received."), mode: activeMode },
       ]);
       // Read AI response aloud
       if (data.response) speakText(data.response);
@@ -441,10 +476,34 @@ const Home = () => {
             </div>
           )}
 
-          <div className="flex items-center gap-2 border border-gray-300 rounded-2xl px-4 py-3 shadow-sm focus-within:ring-2 focus-within:ring-gray-300">
+          {/* Active mode indicator */}
+          {activeMode && (
+            <div className="flex items-center gap-2 mb-2 px-4 py-2 rounded-xl text-sm font-medium"
+              style={{
+                backgroundColor: activeMode === "search" ? "#eef2ff" : activeMode === "study" ? "#f0fdf4" : "#fdf4ff",
+                color: activeMode === "search" ? "#4338ca" : activeMode === "study" ? "#15803d" : "#a21caf",
+                border: `1px solid ${activeMode === "search" ? "#c7d2fe" : activeMode === "study" ? "#bbf7d0" : "#f0abfc"}`,
+              }}
+            >
+              <span>{MODE_CONFIG[activeMode].icon}</span>
+              <span>{MODE_CONFIG[activeMode].label} mode active</span>
+              <button
+                onClick={() => setActiveMode(null)}
+                className="ml-auto text-gray-400 hover:text-red-500 transition"
+              >
+                ✕
+              </button>
+            </div>
+          )}
+
+          <div className={`flex items-center gap-2 border rounded-2xl px-4 py-3 shadow-sm focus-within:ring-2 ${activeMode === "search" ? "border-indigo-400 focus-within:ring-indigo-300" :
+              activeMode === "study" ? "border-green-400 focus-within:ring-green-300" :
+                activeMode === "create_image" ? "border-purple-400 focus-within:ring-purple-300" :
+                  "border-gray-300 focus-within:ring-gray-300"
+            }`}>
             <input
               type="text"
-              placeholder={attachedFile ? "Ask about this file..." : "Ask anything"}
+              placeholder={getPlaceholder()}
               className="flex-1 outline-none text-gray-700 placeholder-gray-400"
               value={input}
               onChange={(e) => setInput(e.target.value)}
@@ -472,7 +531,11 @@ const Home = () => {
               id="voice-auto-send"
               onClick={askQuestion}
               disabled={loading || (!input.trim() && !attachedFile)}
-              className="p-2 rounded-full bg-gray-800 text-white hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed transition"
+              className={`p-2 rounded-full text-white disabled:opacity-40 disabled:cursor-not-allowed transition ${activeMode === "search" ? "bg-indigo-600 hover:bg-indigo-500" :
+                  activeMode === "study" ? "bg-green-600 hover:bg-green-500" :
+                    activeMode === "create_image" ? "bg-purple-600 hover:bg-purple-500" :
+                      "bg-gray-800 hover:bg-gray-700"
+                }`}
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <line x1="22" y1="2" x2="11" y2="13"></line>
@@ -491,15 +554,39 @@ const Home = () => {
 
           {/* Action buttons */}
           <div className="flex flex-wrap gap-2 mt-4 justify-center">
-            {["Attach", "Search", "Study", "Create image"].map((item) => (
-              <button
-                key={item}
-                onClick={item === "Attach" ? handleAttachClick : undefined}
-                className="px-4 py-1.5 text-sm border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition"
-              >
-                {item}
-              </button>
-            ))}
+            <button
+              onClick={handleAttachClick}
+              className="px-4 py-1.5 text-sm border border-gray-300 rounded-full text-gray-700 hover:bg-gray-100 transition"
+            >
+              📎 Attach
+            </button>
+            <button
+              onClick={() => toggleMode("search")}
+              className={`px-4 py-1.5 text-sm rounded-full transition font-medium ${activeMode === "search"
+                  ? "bg-indigo-600 text-white border border-indigo-600 shadow-md shadow-indigo-200"
+                  : "border border-gray-300 text-gray-700 hover:bg-indigo-50 hover:border-indigo-300 hover:text-indigo-700"
+                }`}
+            >
+              🔍 Search
+            </button>
+            <button
+              onClick={() => toggleMode("study")}
+              className={`px-4 py-1.5 text-sm rounded-full transition font-medium ${activeMode === "study"
+                  ? "bg-green-600 text-white border border-green-600 shadow-md shadow-green-200"
+                  : "border border-gray-300 text-gray-700 hover:bg-green-50 hover:border-green-300 hover:text-green-700"
+                }`}
+            >
+              📚 Study
+            </button>
+            <button
+              onClick={() => toggleMode("create_image")}
+              className={`px-4 py-1.5 text-sm rounded-full transition font-medium ${activeMode === "create_image"
+                  ? "bg-purple-600 text-white border border-purple-600 shadow-md shadow-purple-200"
+                  : "border border-gray-300 text-gray-700 hover:bg-purple-50 hover:border-purple-300 hover:text-purple-700"
+                }`}
+            >
+              🎨 Create Image
+            </button>
           </div>
         </div>
 
